@@ -39,7 +39,7 @@ memory locality, and access time:
 
 - **Global rotation**: A global rotation offset enables fast modifications near the list's start, effectively
   halving the number of affected blocks. Operations near the head or tail are close to `O(1)`, while those nearer
-  to the middle degrade gradually to `O(blockSize)`.
+  to the middle degrade gradually to `O(n/b)` where `b` is the block size used.
 
 ### Benchmark Summary
 
