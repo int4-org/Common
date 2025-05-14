@@ -46,7 +46,8 @@ memory locality, and access time:
 All benchmarks were performed using [JMH](https://github.com/openjdk/jmh). For raw data see the [benchmarks](https://github.com/int4-org/Common/tree/master/common-collection/benchmarks) folder.
 The lists compared are JDK's `ArrayList`, `LinkedList`, and Apache Commons Collections' `TreeList`.
 
-![Add(int) Benchmark](assets/add-benchmark.png)
+![add(int) Benchmark](assets/add-benchmark.png)
+![get(int) Benchmark](assets/get-benchmark.png)
 
 #### Insertions and removals
 
