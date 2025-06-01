@@ -32,6 +32,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class ShiftListTest extends AbstractListTest {
 
+  {
+    stressTestOperations = 50000;
+  }
+
   @Override
   protected List<String> createList() {
     return new ShiftList<>();
