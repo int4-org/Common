@@ -48,8 +48,7 @@ public class ShiftListTest extends AbstractListTest {
 
     assertThat(list).isEqualTo(template);
 
-    @SuppressWarnings("unchecked")
-    ShiftList<Integer> clone = (ShiftList<Integer>)list.clone();
+    ShiftList<Integer> clone = list.clone();
 
     assertThat(list).isEqualTo(clone);
     assertThat(list).isNotSameAs(clone);

@@ -644,7 +644,7 @@ public sealed class ShiftList<E> extends AbstractList<E> implements Deque<E>, Ra
    * @return a clone of this instance, never {@code null}
    */
   @Override
-  public Object clone() {
+  public ShiftList<E> clone() {
     try {
       @SuppressWarnings("unchecked")
       ShiftList<E> clone = (ShiftList<E>)super.clone();
