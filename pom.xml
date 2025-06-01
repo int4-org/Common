@@ -32,7 +32,7 @@
   </licenses>
 
   <scm>
-    <url>https://github.com/int4-org/Common.git</url>
+    <url>https://github.com/int4-org/Common</url>
     <connection>scm:git:https://github.com/int4-org/Common.git</connection>
   </scm>
 
