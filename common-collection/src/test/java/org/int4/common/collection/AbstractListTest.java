@@ -25,22 +25,29 @@
 package org.int4.common.collection;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.function.Consumer;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public abstract class AbstractListTest {
   private List<String> testList = createList();
 
   protected abstract List<String> createList();
+  protected int stressTestOperations = 100000;
+
+  static {
+    Assertions.setMaxStackTraceElementsDisplayed(2000);
+  }
 
   class InvariantTests {
     @Test
@@ -59,9 +66,12 @@ public abstract class AbstractListTest {
     }
 
     @Test
-    void iteratorShouldReturnExpectedNumberOfElements() {
-      Iterator<String> iterator = testList.iterator();
+    void listIteratorShouldReturnExpectedNumberOfElements() {
+      ListIterator<String> iterator = testList.listIterator();
       int i = 0;
+
+      assertThat(iterator.hasPrevious()).isFalse();
+      assertThatThrownBy(() -> iterator.previous()).isInstanceOf(NoSuchElementException.class);
 
       while(iterator.hasNext()) {
         String element = iterator.next();
@@ -71,6 +81,24 @@ public abstract class AbstractListTest {
 
       assertThat(i).isEqualTo(testList.size());
       assertThatThrownBy(() -> iterator.next()).isInstanceOf(NoSuchElementException.class);
+    }
+
+    @Test
+    void listIteratorShouldReturnExpectedNumberOfElementsInReverse() {
+      ListIterator<String> iterator = testList.listIterator(testList.size());
+      int i = testList.size();
+
+      assertThat(iterator.hasNext()).isFalse();
+      assertThatThrownBy(() -> iterator.next()).isInstanceOf(NoSuchElementException.class);
+
+      while(iterator.hasPrevious()) {
+        String element = iterator.previous();
+
+        assertThat(element).isEqualTo(testList.get(--i));
+      }
+
+      assertThat(i).isEqualTo(0);
+      assertThatThrownBy(() -> iterator.previous()).isInstanceOf(NoSuchElementException.class);
     }
 
     @Test
@@ -140,6 +168,7 @@ public abstract class AbstractListTest {
   @Nested
   class WhenHasOneElement extends InvariantTests {
     private static String ELEMENT = "S";
+    private static String ANOTHER_ELEMENT = "T";
 
     {
       testList.add(ELEMENT);
@@ -161,15 +190,24 @@ public abstract class AbstractListTest {
     }
 
     @Test
+    void get0ShouldReturnElement() {
+      assertThat(testList.get(0)).isEqualTo(ELEMENT);
+    }
+
+    @Test
+    void set0ShouldReplaceElement() {
+      assertThat(testList.set(0, ANOTHER_ELEMENT)).isEqualTo(ELEMENT);
+      assertThat(testList.get(0)).isEqualTo(ANOTHER_ELEMENT);
+    }
+
+    @Test
     void getFirstShouldReturnElement() {
       assertThat(testList.getFirst()).isEqualTo(ELEMENT);
-      assertThat(testList).isNotEmpty();
     }
 
     @Test
     void getLastShouldReturnElement() {
       assertThat(testList.getLast()).isEqualTo(ELEMENT);
-      assertThat(testList).isNotEmpty();
     }
 
     @Test
@@ -205,7 +243,7 @@ public abstract class AbstractListTest {
     void allAddRemoveOrders() {
       int size = 10;
 
-      generateInsertOrders(size, new ArrayList<>(), list -> {
+      generateRemoveAndInsertOrders(size, new ArrayList<>(), list -> {
         List<String> built = createList();
         List<String> reference = new ArrayList<>();
 
@@ -230,7 +268,31 @@ public abstract class AbstractListTest {
       });
     }
 
-    static void generateInsertOrders(int n, List<Integer> current, Consumer<List<Integer>> callback) {
+    @Test
+    void allRemoveOrders() {
+      List<String> data = List.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K");
+      int size = 11;
+
+      generateRemoveOrders(size, new ArrayList<>(), list -> {
+        List<String> built = createList();
+        List<String> reference = new ArrayList<>(data);
+
+        built.addAll(data);
+
+        for(int i = 0; i < list.size(); i++) {
+          int index = list.get(i);
+
+          assertThat(reference.remove(index)).isEqualTo(built.remove(index));
+        }
+
+        assertThat(built.size()).isEqualTo(0);
+        assertThat(built)
+          .as(() -> "Add/Removes: " + list)
+          .isEqualTo(reference);
+      });
+    }
+
+    static void generateRemoveAndInsertOrders(int n, List<Integer> current, Consumer<List<Integer>> callback) {
       callback.accept(current);
 
       if(current.size() == n) {
@@ -242,13 +304,149 @@ public abstract class AbstractListTest {
 
         if(i <= expectedSize) {
           current.add(i);
-          generateInsertOrders(n, current, callback);
+          generateRemoveAndInsertOrders(n, current, callback);
           current.removeLast();
         }
         if(i < expectedSize) {
           current.add(~i);
-          generateInsertOrders(n, current, callback);
+          generateRemoveAndInsertOrders(n, current, callback);
           current.removeLast();
+        }
+      }
+    }
+
+    static void generateRemoveOrders(int n, List<Integer> current, Consumer<List<Integer>> callback) {
+      if(current.size() == n) {
+        callback.accept(current);
+        return;
+      }
+
+      for(int i = 0; i < n - current.size(); i++) {
+        current.add(i);
+        generateRemoveOrders(n, current, callback);
+        current.removeLast();
+      }
+    }
+
+    enum Action { NEXT, PREVIOUS }
+
+    @Test
+    void allIteratorNextPreviousOrders() {
+      List<String> list = createList();
+      List<String> reference = new ArrayList<>(List.of("1", "2", "3", "4"));
+
+      list.addAll(reference);
+
+      generateIteratorActions(15, new ArrayList<>(), actions -> {
+        ListIterator<String> refIter = reference.listIterator();
+        ListIterator<String> listIter = list.listIterator();
+
+        for(int i = 0; i < actions.size(); i++) {
+          Action action = actions.get(i);
+
+          switch(action) {
+            case NEXT -> {
+              try {
+                String s = refIter.next();
+
+                assertThat(s).isEqualTo(listIter.next());
+              }
+              catch(NoSuchElementException e) {
+                assertThatThrownBy(() -> listIter.next()).isInstanceOf(NoSuchElementException.class);
+              }
+            }
+            case PREVIOUS -> {
+              try {
+                String s = refIter.previous();
+
+                assertThat(s).isEqualTo(listIter.previous());
+              }
+              catch(NoSuchElementException e) {
+                assertThatThrownBy(() -> listIter.previous()).isInstanceOf(NoSuchElementException.class);
+              }
+            }
+          }
+        }
+      });
+    }
+
+    static void generateIteratorActions(int n, List<Action> current, Consumer<List<Action>> callback) {
+      if(current.size() == n) {
+        callback.accept(current);
+
+        return;
+      }
+
+      for(int i = 0; i < Action.values().length; i++) {
+        current.add(Action.values()[i]);
+        generateIteratorActions(n, current, callback);
+        current.removeLast();
+      }
+    }
+  }
+
+  @Nested
+  class IteratorStressTests {
+    private static int OPERATIONS = 100000;
+
+    private Random random = new Random(42); // Fixed seed for reproducibility
+    private List<String> referenceList = new ArrayList<>();
+
+    @Test
+    void randomIteratorActions() {
+      ListIterator<String> refIter = referenceList.listIterator();
+      ListIterator<String> iter = testList.listIterator();
+
+      for(int i = 0; i < OPERATIONS; i++) {
+        assertThat(referenceList).isEqualTo(testList);
+        assertThat(refIter.hasNext()).isEqualTo(iter.hasNext());
+        assertThat(refIter.hasPrevious()).isEqualTo(iter.hasPrevious());
+        assertThat(refIter.nextIndex()).isEqualTo(iter.nextIndex());
+        assertThat(refIter.previousIndex()).isEqualTo(iter.previousIndex());
+
+        int operation = random.nextInt(50);
+
+        if(operation < 10) {
+          try {
+            String s = refIter.next();
+
+            assertThat(s).isEqualTo(iter.next());
+          }
+          catch(NoSuchElementException e) {
+            assertThatThrownBy(() -> iter.next()).isInstanceOf(NoSuchElementException.class);
+          }
+        }
+        else if(operation < 20) {
+          try {
+            String s = refIter.previous();
+
+            assertThatNoException().isThrownBy(() -> assertThat(iter.previous()).isEqualTo(s));
+          }
+          catch(NoSuchElementException e) {
+            assertThatThrownBy(() -> iter.previous()).isInstanceOf(NoSuchElementException.class);
+          }
+        }
+        else if(operation < 30) {
+          refIter.add("" + i);
+          iter.add("" + i);
+        }
+        else if(operation < 40) {
+          try {
+            refIter.remove();
+            assertThatNoException().isThrownBy(() -> iter.remove());
+          }
+          catch(IllegalStateException e) {
+            assertThatThrownBy(() -> iter.remove()).isInstanceOf(IllegalStateException.class);
+          }
+        }
+        else if(operation < 50) {
+          try {
+            refIter.set("" + operation);
+            assertThatNoException().isThrownBy(() -> iter.set("" + operation));
+          }
+          catch(IllegalStateException e) {
+            assertThatThrownBy(() -> iter.set("" + operation)).isInstanceOf(IllegalStateException.class);
+          }
         }
       }
     }
@@ -256,13 +454,13 @@ public abstract class AbstractListTest {
 
   @Nested
   class StressTests {
-    private static int OPERATIONS = 100000;
-    private static String[] STRINGS = new String[OPERATIONS];
+    private final int OPERATIONS = stressTestOperations;
+    private final String[] STRINGS = new String[OPERATIONS];
 
     private Random random = new Random(42); // Fixed seed for reproducibility
     private List<String> referenceList = new ArrayList<>();
 
-    static {
+    {
       for(int i = 0; i < OPERATIONS; i++) {
         STRINGS[i] = "" + i;
       }
