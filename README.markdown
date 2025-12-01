@@ -8,6 +8,19 @@
 
 Commonly usable classes without dependencies.
 
+## `common-collection`
+
+Contains specialized collection classes.
+
+## `common-function`
+
+Contains additional functional interfaces:
+
+- `TriFunction`
+- `QuadFunction`
+
+# Highlights
+
 ## `org.int4.common.collection.ShiftList`
 
 `ShiftList` is a high-performance, general-purpose `List` and `Deque` implementation optimized for
