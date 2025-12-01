@@ -16,8 +16,14 @@ Contains specialized collection classes.
 
 Contains additional functional interfaces:
 
-- `TriFunction`
-- `QuadFunction`
+- Functions with more arguments:
+  - `TriFunction`
+  - `QuadFunction`
+- Throwing variants of common functional interfaces:
+  - `ThrowingConsumer`
+  - `ThrowingFunction`
+  - `ThrowingRunnable`
+  - `ThrowingSupplier` 
 
 # Highlights
 
