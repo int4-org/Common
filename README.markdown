@@ -1,6 +1,6 @@
 # Common
 
-[![Maven Central Version](https://img.shields.io/maven-central/v/org.int4.common/parent)](https://maven-badges.herokuapp.com/maven-central/org.int4.common/parent)
+[![Maven Central Version](https://img.shields.io/maven-central/v/org.int4.common/parent)](https://mvnrepository.com/artifact/org.int4.common)
 [![Build Status](https://github.com/int4-org/Common/actions/workflows/maven.yml/badge.svg?branch=master)](https://github.com/int4-org/Common/actions)
 [![Coverage](https://codecov.io/gh/int4-org/Common/branch/master/graph/badge.svg?token=QCNNRFYF98)](https://codecov.io/gh/int4-org/Common)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
