@@ -17,20 +17,15 @@ jobs:
           server-id: sonatype-nexus-staging
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
-      - name: Force Maven to use repo1.maven.org
+      - name: Add mirror
         run: |
-          mkdir -p ~/.m2
-          cat > ~/.m2/settings.xml <<'EOF'
-          <settings>
-            <mirrors>
-              <mirror>
-                <id>central-repo1</id>
-                <mirrorOf>central</mirrorOf>
-                <url>https://repo1.maven.org/maven2/</url>
-              </mirror>
-            </mirrors>
-          </settings>
-          EOF
+          sed -i 's|</settings>|  <mirrors>\
+            <mirror>\
+              <id>central-repo1</id>\
+              <mirrorOf>central</mirrorOf>\
+              <url>https://repo1.maven.org/maven2/</url>\
+            </mirror>\
+          </mirrors></settings>|' ~/.m2/settings.xml
       - name: Install GPG secret key
         run: |
           cat <(echo -e "${{ secrets.OSSRH_GPG_SECRET_KEY }}") | gpg --batch --import
