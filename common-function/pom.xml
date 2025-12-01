@@ -11,6 +11,8 @@
   <artifactId>common-function</artifactId>
   <packaging>jar</packaging>
 
+  <name>Commons Function</name>
+
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
