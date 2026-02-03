@@ -16,6 +16,9 @@ Contains specialized collection classes.
 
 Contains additional functional interfaces:
 
+- Consumers with more arguments:
+  - `TriConsumer`
+  - `QuadConsumer`
 - Functions with more arguments:
   - `TriFunction`
   - `QuadFunction`
