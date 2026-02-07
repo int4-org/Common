@@ -195,16 +195,6 @@
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.2.5</version>
-        <configuration>
-          <excludes>
-            <exclude></exclude>
-          </excludes>
-          <includes>
-            <include>**/*IT.java</include>
-            <include>**/*Test.java</include>
-            <include>**/*Test$*.java</include>
-          </includes>
-        </configuration>
         <executions>
           <execution>
             <id>default-test</id>
