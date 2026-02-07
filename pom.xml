@@ -13,6 +13,7 @@
   <url>https://github.com/int4-org/Common</url>
 
   <modules>
+    <module>common-builder</module>
     <module>common-collection</module>
     <module>common-function</module>
   </modules>
@@ -76,6 +77,21 @@
 
   <dependencyManagement>
     <dependencies>
+      <dependency>
+        <groupId>org.int4.common</groupId>
+        <artifactId>common-builder</artifactId>
+        <version>${revision}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.int4.common</groupId>
+        <artifactId>common-collection</artifactId>
+        <version>${revision}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.int4.common</groupId>
+        <artifactId>common-function</artifactId>
+        <version>${revision}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
