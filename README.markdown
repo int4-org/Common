@@ -26,9 +26,63 @@ Contains additional functional interfaces:
   - `ThrowingConsumer`
   - `ThrowingFunction`
   - `ThrowingRunnable`
-  - `ThrowingSupplier` 
+  - `ThrowingSupplier`
+
+## `common-test`
+
+Contains a specialized testing framework for exhaustive state-space exploration.
+
+- `ExploratoryTestRunner`: Exhaustively explores an `Explorable` model by applying `@Action` and
+  verifying `@Assertion` annotations. Features include:
+  - **State Pruning**: Aggressively deduplicates explored states for performance.
+  - **History-Based Pruning**: Optional `historyDepth` parameter to detect bugs hidden by logical
+    state equality (the "Hidden State" problem).
+  - **Path Bounding**: Supports `maxDepth` to ensure termination in unbounded state spaces.
 
 # Highlights
+
+## Exploratory Testing
+
+The `ExploratoryTestRunner` provides a simple but powerful way to perform **Exhaustive State-Space Exploration**
+on any Java model. By defining actions and assertions on an `Explorable` implementation, the runner
+systematically explores all reachable states up to a certain depth.
+
+Key features:
+- **Deterministic and Exhaustive**: Unlike random testing (PBT), it tests every possible sequence of
+  actions, ensuring no edge case is missed within the search depth.
+- **Automatic State Pruning**: Uses `snapshot()` to identify states it has already visited, avoiding
+  redundant exploration and allowing it to test millions of paths with minimal effort.
+- **Shortest Path Guarantee**: Because it uses Breadth-First Search (BFS), the first time a bug is
+  found, the reported action sequence is guaranteed to be the shortest possible reproduction path.
+- **JUnit 5 Integration**: Leverages standard JUnit annotations like `@ValueSource`, `@EnumSource`,
+  and `@MethodSource` to parameterize actions.
+
+```java
+public class MyModel implements Explorable {
+  private final List<String> expected = new ArrayList<>();
+  private final List<String> list = new MyList<>();
+
+  @Action
+  @ValueSource(strings = {"A", "B"})
+  public Runnable add(String s) {
+    expected.add(s);           // Update expectation
+    return () -> list.add(s);  // Perform effect
+  }
+
+  @Assertion
+  public void check() {
+    assertThat(list).isEqualTo(expected);
+  }
+
+  @Override
+  public Object snapshot() {
+    return new ArrayList<>(expected);
+  }
+}
+
+// Explore all paths up to depth 6
+ExploratoryTestRunner.explore(MyModel.class, MyModel::new, 6);
+```
 
 ## `org.int4.common.collection.ShiftList`
 

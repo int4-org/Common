@@ -16,6 +16,7 @@
     <module>common-builder</module>
     <module>common-collection</module>
     <module>common-function</module>
+    <module>common-test</module>
   </modules>
 
   <properties>
@@ -54,23 +55,21 @@
     </repository>
   </distributionManagement>
 
+  <!-- always available as test dependencies -->
   <dependencies>
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
-      <version>3.27.7</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>5.10.2</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5-api</artifactId>
-      <version>1.3.0</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -91,6 +90,28 @@
         <groupId>org.int4.common</groupId>
         <artifactId>common-function</artifactId>
         <version>${revision}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.int4.common</groupId>
+        <artifactId>common-test</artifactId>
+        <version>${revision}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>5.10.2</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>3.27.7</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5-api</artifactId>
+        <version>1.3.0</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
