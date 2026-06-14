@@ -30,7 +30,7 @@ Contains additional functional interfaces:
 
 ## `common-test`
 
-Contains a specialized testing framework for exhaustive state-space exploration. See the [common-test README](common-test/README.md) for a detailed user guide.
+Contains a specialized testing framework for exhaustive state-space exploration. See the [common-test README](common-test/README.markdown) for a detailed user guide.
 
 - `ExploratoryTestRunner`: Exhaustively explores an `Explorable` model by applying `@Action` and
   verifying `@Assertion` annotations. Features include:
