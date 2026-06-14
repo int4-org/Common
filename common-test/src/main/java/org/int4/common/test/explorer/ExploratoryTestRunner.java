@@ -456,7 +456,7 @@ public final class ExploratoryTestRunner {
       || c.startsWith("jdk.")
       || c.startsWith("org.junit.")
       || c.startsWith("org.opentest4j.")
-      || c.contains("org.int4.common.test.");
+      || c.startsWith("org.int4.common.test.explorer.");
   }
 
   private static ExtensionContext createExtensionContext(Method testMethod) {
