@@ -1,0 +1,20 @@
+org.opentest4j.AssertionFailedError: Path 61 failed: 
+ - enqueue(A) -> State[queue=[A]]
+ - enqueue(B) -> State[queue=[A, B]]
+ - dequeue -> State[queue=[B]]
+[Queue contents] 
+expected: ["B"]
+ but was: ["A"]
+  at org.int4.common.test/examples.LinkedHashSetAsDeduplicatingQueueExploratoryTest$QueueExplorable.assertQueueContents(LinkedHashSetAsDeduplicatingQueueExploratoryTest.java:42)
+[Peeked element] 
+expected: "B"
+ but was: "A"
+  at org.int4.common.test/examples.LinkedHashSetAsDeduplicatingQueueExploratoryTest$QueueExplorable.assertPeekedElement(LinkedHashSetAsDeduplicatingQueueExploratoryTest.java:49)
+While running:
+  at org.int4.common.test/org.int4.common.test.explorer.ExploratoryTestRunner.doAll(ExploratoryTestRunner.java:369)
+  at org.int4.common.test/org.int4.common.test.explorer.ExploratoryTestRunner.explore(ExploratoryTestRunner.java:140)
+  at org.int4.common.test/org.int4.common.test.explorer.ExploratoryTestRunner.explore(ExploratoryTestRunner.java:102)
+  at org.int4.common.test/examples.LinkedHashSetAsDeduplicatingQueueExploratoryTest.exploreQueueSemantics(LinkedHashSetAsDeduplicatingQueueExploratoryTest.java:23)
+  at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+  at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+  at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
