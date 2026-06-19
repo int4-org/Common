@@ -47,6 +47,79 @@ import java.util.function.Function;
  * Null elements are preserved unless otherwise specified by a particular method.
  */
 public abstract class Immutable {
+  private static final SequencedMap<?, ?> EMPTY_SEQUENCED_MAP = Immutable.of(new LinkedHashMap<>());
+
+  /**
+   * Creates an empty immutable sequenced map.
+   *
+   * @param <K> the key type
+   * @param <V> the value type
+   * @return an immutable sequenced map, never {@code null}
+   */
+  @SuppressWarnings("unchecked")
+  public static <K, V> SequencedMap<K, V> sequencedMap() {
+    return (SequencedMap<K, V>)EMPTY_SEQUENCED_MAP;
+  }
+
+  /**
+   * Creates an immutable sequenced map with one entry.
+   *
+   * @param <K> the key type
+   * @param <V> the value type
+   * @param k the key
+   * @param v the value
+   * @return an immutable sequenced map, never {@code null}
+   */
+  public static <K, V> SequencedMap<K, V> sequencedMap(K k, V v) {
+    SequencedMap<K, V> map = new LinkedHashMap<>();
+
+    map.put(k, v);
+
+    return of(map);
+  }
+
+  /**
+   * Creates an immutable sequenced map with two entries.
+   *
+   * @param <K> the key type
+   * @param <V> the value type
+   * @param k1 the first key
+   * @param v1 the first value
+   * @param k2 the second key
+   * @param v2 the second value
+   * @return an immutable sequenced map, never {@code null}
+   */
+  public static <K, V> SequencedMap<K, V> sequencedMap(K k1, V v1, K k2, V v2) {
+    SequencedMap<K, V> map = new LinkedHashMap<>();
+
+    map.put(k1, v1);
+    map.put(k2, v2);
+
+    return of(map);
+  }
+
+  /**
+   * Creates an immutable sequenced map with three entries.
+   *
+   * @param <K> the key type
+   * @param <V> the value type
+   * @param k1 the first key
+   * @param v1 the first value
+   * @param k2 the second key
+   * @param v2 the second value
+   * @param k3 the third key
+   * @param v3 the third value
+   * @return an immutable sequenced map, never {@code null}
+   */
+  public static <K, V> SequencedMap<K, V> sequencedMap(K k1, V v1, K k2, V v2, K k3, V v3) {
+    SequencedMap<K, V> map = new LinkedHashMap<>();
+
+    map.put(k1, v1);
+    map.put(k2, v2);
+    map.put(k3, v3);
+
+    return of(map);
+  }
 
   /**
    * Returns an immutable representation of the given list.
