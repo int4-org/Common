@@ -39,7 +39,7 @@ class ImmutableTest {
 
   @Test
   void shouldThrowExceptionWhenListIsNull() {
-    assertThatThrownBy(() -> Immutable.of(null))
+    assertThatThrownBy(() -> Immutable.of((List<?>)null))
       .isExactlyInstanceOf(NullPointerException.class)
       .hasMessage("list");
   }
