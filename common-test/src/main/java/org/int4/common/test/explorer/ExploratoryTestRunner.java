@@ -310,7 +310,7 @@ public final class ExploratoryTestRunner {
         maxPathLength = Math.max(maxPathLength, path.depth);
 
         if(System.currentTimeMillis() - lastUpdate > 500) {
-          System.out.printf("\rPaths: %-7d | Queue: %-7d | Depth: %-7d   ", pathsExplored, unexploredPaths.size(), maxPathLength);
+          System.out.printf("\rPaths: %-7d | States: %-7d | Queue: %-7d | Depth: %-7d   ", pathsExplored, seenStates.size(), unexploredPaths.size(), maxPathLength);
 
           lastUpdate = System.currentTimeMillis();
         }
@@ -373,8 +373,8 @@ public final class ExploratoryTestRunner {
       }
     }
 
-    System.out.print("\r" + " ".repeat(80) + "\r");
-    System.out.println(ExploratoryTestRunner.class.getSimpleName() + ": " + testClass + " -- Explored " + pathsExplored + " paths, longest path: " + maxPathLength + (maxDepth == Integer.MAX_VALUE ? "" : " (max depth: " + maxDepth + ")"));
+    System.out.print("\r" + " ".repeat(100) + "\r");
+    System.out.println(ExploratoryTestRunner.class.getSimpleName() + ": " + testClass + " -- Explored " + pathsExplored + " paths (" + seenStates.size() + " unique states), longest path: " + maxPathLength + (maxDepth == Integer.MAX_VALUE ? "" : " (max depth: " + maxDepth + ")"));
   }
 
   private static List<Object> createPruningKey(int historyDepth, Path path, Object finalState) {
