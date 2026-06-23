@@ -29,6 +29,7 @@ import java.util.TreeSet;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 /**
  * Utility for creating immutable representations of common collection types.
@@ -176,7 +177,7 @@ public abstract class Immutable {
    *   if it is already immutable, never {@code null}
    * @throws NullPointerException if {@code map} is {@code null}
    */
-  public static <K, V> SequencedMap<K, V> of(NavigableMap<K, V> map) {
+  public static <K, V> NavigableMap<K, V> of(NavigableMap<K, V> map) {
     Objects.requireNonNull(map, "map");
 
     if(isKnownImmutable(map)) {
@@ -310,7 +311,7 @@ public abstract class Immutable {
       return set;
     }
 
-    return new ImmutableNavigableSet<>(new TreeSet<>(set));
+    return new ImmutableNavigableSet<>(new TreeSet<>(set), Immutable::normalIterator);
   }
 
   /**
@@ -341,7 +342,7 @@ public abstract class Immutable {
       return set;
     }
 
-    return new ImmutableSortedSet<>(new TreeSet<>(set));
+    return new ImmutableSortedSet<>(new TreeSet<>(set), Immutable::normalIterator);
   }
 
   /**
@@ -372,7 +373,7 @@ public abstract class Immutable {
       return set;
     }
 
-    return new ImmutableSequencedSet<>(new LinkedHashSet<>(set));
+    return new ImmutableSequencedSet<>(new LinkedHashSet<>(set), Immutable::normalIterator);
   }
 
   /**
@@ -403,7 +404,7 @@ public abstract class Immutable {
       return set;
     }
 
-    return new ImmutableSet<>(new HashSet<>(set));
+    return new ImmutableSet<>(new HashSet<>(set), Immutable::normalIterator);
   }
 
   private static boolean isKnownImmutable(List<?> list) {
@@ -569,12 +570,12 @@ public abstract class Immutable {
 
     @Override
     public NavigableSet<K> navigableKeySet() {
-      return new ImmutableNavigableSet<>(delegate.navigableKeySet());
+      return new ImmutableNavigableSet<>(delegate.navigableKeySet(), Immutable::normalIterator);
     }
 
     @Override
     public NavigableSet<K> descendingKeySet() {
-      return new ImmutableNavigableSet<>(delegate.descendingKeySet());
+      return new ImmutableNavigableSet<>(delegate.descendingKeySet(), Immutable::normalIterator);
     }
 
     @Override
@@ -701,7 +702,7 @@ public abstract class Immutable {
 
     @Override
     public final SequencedSet<K> sequencedKeySet() {
-      return new ImmutableSequencedSet<>(delegate.sequencedKeySet());
+      return new ImmutableSequencedSet<>(delegate.sequencedKeySet(), Immutable::normalIterator);
     }
 
     @Override
@@ -711,7 +712,7 @@ public abstract class Immutable {
 
     @Override
     public final SequencedSet<Entry<K, V>> sequencedEntrySet() {
-      return new ImmutableSequencedSet<>(Collections.unmodifiableSequencedSet(delegate.sequencedEntrySet()));  // entries must be immutable as well
+      return new ImmutableSequencedSet<>(Collections.unmodifiableSequencedSet(delegate.sequencedEntrySet()), Immutable::entryIterator);  // entries must be immutable as well
     }
 
     @Override
@@ -853,7 +854,7 @@ public abstract class Immutable {
 
     @Override
     public final Set<K> keySet() {
-      return new ImmutableSet<>(delegate.keySet());
+      return new ImmutableSet<>(delegate.keySet(), Immutable::normalIterator);
     }
 
     @Override
@@ -863,26 +864,26 @@ public abstract class Immutable {
 
     @Override
     public final Set<Entry<K, V>> entrySet() {
-      return new ImmutableSet<>(Collections.unmodifiableSet(delegate.entrySet()));  // entries must be immutable as well
+      return new ImmutableSet<>(delegate.entrySet(), Immutable::entryIterator);  // entries must be immutable as well
     }
   }
 
   private static final class ImmutableNavigableSet<E> extends AbstractImmutableNavigableSet<E, NavigableSet<E>> {
 
-    ImmutableNavigableSet(NavigableSet<E> delegate) {
-      super(delegate);
+    ImmutableNavigableSet(NavigableSet<E> delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
+      super(delegate, readOnlyIteratorSupplier);
     }
 
     @Override
     public NavigableSet<E> internalReversed() {
-      return new ImmutableNavigableSet<>(delegate.reversed());
+      return new ImmutableNavigableSet<>(delegate.reversed(), Immutable::normalIterator);
     }
   }
 
   private static abstract class AbstractImmutableNavigableSet<E, D extends NavigableSet<E>> extends AbstractImmutableSortedSet<E, D> implements NavigableSet<E> {
 
-    AbstractImmutableNavigableSet(D delegate) {
-      super(delegate);
+    AbstractImmutableNavigableSet(D delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
+      super(delegate, readOnlyIteratorSupplier);
     }
 
     @Override
@@ -917,7 +918,7 @@ public abstract class Immutable {
 
     @Override
     public final NavigableSet<E> descendingSet() {
-      return new ImmutableNavigableSet<>(delegate.descendingSet());
+      return new ImmutableNavigableSet<>(delegate.descendingSet(), Immutable::normalIterator);
     }
 
     @Override
@@ -939,36 +940,36 @@ public abstract class Immutable {
 
     @Override
     public final NavigableSet<E> subSet(E fromElement, boolean fromInclusive, E toElement, boolean toInclusive) {
-      return new ImmutableNavigableSet<>(delegate.subSet(fromElement, fromInclusive, toElement, toInclusive));
+      return new ImmutableNavigableSet<>(delegate.subSet(fromElement, fromInclusive, toElement, toInclusive), Immutable::normalIterator);
     }
 
     @Override
     public final NavigableSet<E> headSet(E toElement, boolean inclusive) {
-      return new ImmutableNavigableSet<>(delegate.headSet(toElement, inclusive));
+      return new ImmutableNavigableSet<>(delegate.headSet(toElement, inclusive), Immutable::normalIterator);
     }
 
     @Override
     public final NavigableSet<E> tailSet(E fromElement, boolean inclusive) {
-      return new ImmutableNavigableSet<>(delegate.tailSet(fromElement, inclusive));
+      return new ImmutableNavigableSet<>(delegate.tailSet(fromElement, inclusive), Immutable::normalIterator);
     }
   }
 
   private static final class ImmutableSortedSet<E> extends AbstractImmutableSortedSet<E, SortedSet<E>> {
 
-    ImmutableSortedSet(SortedSet<E> delegate) {
-      super(delegate);
+    ImmutableSortedSet(SortedSet<E> delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
+      super(delegate, readOnlyIteratorSupplier);
     }
 
     @Override
     public SortedSet<E> internalReversed() {
-      return new ImmutableSortedSet<>(delegate.reversed());
+      return new ImmutableSortedSet<>(delegate.reversed(), Immutable::normalIterator);
     }
   }
 
   private static abstract class AbstractImmutableSortedSet<E, D extends SortedSet<E>> extends AbstractImmutableSequencedSet<E, D> implements SortedSet<E> {
 
-    AbstractImmutableSortedSet(D delegate) {
-      super(delegate);
+    AbstractImmutableSortedSet(D delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
+      super(delegate, readOnlyIteratorSupplier);
     }
 
     @Override
@@ -978,17 +979,17 @@ public abstract class Immutable {
 
     @Override
     public final SortedSet<E> subSet(E fromElement, E toElement) {
-      return new ImmutableSortedSet<>(delegate.subSet(fromElement, toElement));
+      return new ImmutableSortedSet<>(delegate.subSet(fromElement, toElement), Immutable::normalIterator);
     }
 
     @Override
     public final SortedSet<E> headSet(E toElement) {
-      return new ImmutableSortedSet<>(delegate.headSet(toElement));
+      return new ImmutableSortedSet<>(delegate.headSet(toElement), Immutable::normalIterator);
     }
 
     @Override
     public final SortedSet<E> tailSet(E fromElement) {
-      return new ImmutableSortedSet<>(delegate.tailSet(fromElement));
+      return new ImmutableSortedSet<>(delegate.tailSet(fromElement), Immutable::normalIterator);
     }
 
     @Override
@@ -1004,20 +1005,20 @@ public abstract class Immutable {
 
   private static final class ImmutableSequencedSet<E> extends AbstractImmutableSequencedSet<E, SequencedSet<E>> {
 
-    ImmutableSequencedSet(SequencedSet<E> delegate) {
-      super(delegate);
+    ImmutableSequencedSet(SequencedSet<E> delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
+      super(delegate, readOnlyIteratorSupplier);
     }
 
     @Override
     public SequencedSet<E> internalReversed() {
-      return new ImmutableSequencedSet<>(delegate.reversed());
+      return new ImmutableSequencedSet<>(delegate.reversed(), Immutable::normalIterator);
     }
   }
 
   private static abstract class AbstractImmutableSequencedSet<E, D extends SequencedSet<E>> extends AbstractImmutableSet<E, D> implements SequencedSet<E> {
 
-    AbstractImmutableSequencedSet(D delegate) {
-      super(delegate);
+    AbstractImmutableSequencedSet(D delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
+      super(delegate, readOnlyIteratorSupplier);
     }
 
     @Override
@@ -1030,16 +1031,19 @@ public abstract class Immutable {
 
   private static final class ImmutableSet<E> extends AbstractImmutableSet<E, Set<E>> {
 
-    ImmutableSet(Set<E> delegate) {
-      super(delegate);
+    ImmutableSet(Set<E> delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
+      super(delegate, readOnlyIteratorSupplier);
     }
   }
 
   private abstract static class AbstractImmutableSet<E, D extends Set<E>> implements Set<E> {
     protected final D delegate;
 
-    AbstractImmutableSet(D delegate) {
+    private final UnaryOperator<Iterator<E>> readOnlyIteratorSupplier;
+
+    AbstractImmutableSet(D delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
       this.delegate = delegate;
+      this.readOnlyIteratorSupplier = readOnlyIteratorSupplier;
     }
 
     @Override
@@ -1079,19 +1083,7 @@ public abstract class Immutable {
 
     @Override
     public final Iterator<E> iterator() {
-      Iterator<E> iter = delegate.iterator();
-
-      return new Iterator<>() {
-        @Override
-        public boolean hasNext() {
-          return iter.hasNext();
-        }
-
-        @Override
-        public E next() {
-          return iter.next();
-        }
-      };
+      return readOnlyIteratorSupplier.apply(delegate.iterator());
     }
 
     @Override
@@ -1133,6 +1125,34 @@ public abstract class Immutable {
     public final void clear() {
       throw new UnsupportedOperationException("immutable");
     }
+  }
+
+  private static <E> Iterator<E> normalIterator(Iterator<E> iterator) {
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public E next() {
+        return iterator.next();
+      }
+    };
+  }
+
+  private static <K, V> Iterator<Map.Entry<K, V>> entryIterator(Iterator<Map.Entry<K, V>> iterator) {
+    return new Iterator<>() {
+      @Override
+      public boolean hasNext() {
+        return iterator.hasNext();
+      }
+
+      @Override
+      public Map.Entry<K, V> next() {
+        return new AbstractMap.SimpleImmutableEntry<>(iterator.next());
+      }
+    };
   }
 
   private Immutable() {
