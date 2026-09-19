@@ -25,6 +25,8 @@
 package org.int4.common.collection;
 
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
@@ -38,30 +40,63 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 public abstract class AbstractListTest {
   private List<String> testList = createList();
 
   protected abstract List<String> createList();
   protected int stressTestOperations = 100000;
+  protected int exhaustiveTestRange = 10;
 
   static {
     Assertions.setMaxStackTraceElementsDisplayed(2000);
   }
 
+  protected boolean supportsRemoveIndex() {
+    return true;
+  }
+
+  protected boolean supportsAddIndexT() {
+    return true;
+  }
+
+  protected boolean supportsSetIndexT() {
+    return true;
+  }
+
+  protected boolean supportsListIterator() {
+    return true;
+  }
+
+  protected boolean supportsListIteratorAdd() {
+    return true;
+  }
+
+  protected boolean supportsListIteratorSet() {
+    return true;
+  }
+
+  protected boolean supportsNullElements() {
+    return true;
+  }
+
   class InvariantTests {
+    Class<? extends Exception> expectedRemoveException = supportsRemoveIndex() ? IndexOutOfBoundsException.class : UnsupportedOperationException.class;
+    Class<? extends Exception> expectedAddIndexTException = supportsAddIndexT() ? IndexOutOfBoundsException.class : UnsupportedOperationException.class;
+
     @Test
     void accessingIllegalIndicesShouldThrowIndexOutOfBoundsException() {
       assertThatThrownBy(() -> testList.get(-1)).isInstanceOf(IndexOutOfBoundsException.class);
-      assertThatThrownBy(() -> testList.remove(-1)).isInstanceOf(IndexOutOfBoundsException.class);
-      assertThatThrownBy(() -> testList.add(-1, "")).isInstanceOf(IndexOutOfBoundsException.class);
+      assertThatThrownBy(() -> testList.remove(-1)).isInstanceOf(expectedRemoveException);
+      assertThatThrownBy(() -> testList.add(-1, "")).isInstanceOf(expectedAddIndexTException);
       assertThatThrownBy(() -> testList.listIterator(-1)).isInstanceOf(IndexOutOfBoundsException.class);
 
       int size = testList.size();
 
       assertThatThrownBy(() -> testList.get(size)).isInstanceOf(IndexOutOfBoundsException.class);
-      assertThatThrownBy(() -> testList.remove(size)).isInstanceOf(IndexOutOfBoundsException.class);
-      assertThatThrownBy(() -> testList.add(size + 1, "")).isInstanceOf(IndexOutOfBoundsException.class);
+      assertThatThrownBy(() -> testList.remove(size)).isInstanceOf(expectedRemoveException);
+      assertThatThrownBy(() -> testList.add(size + 1, "")).isInstanceOf(expectedAddIndexTException);
       assertThatThrownBy(() -> testList.listIterator(size + 1)).isInstanceOf(IndexOutOfBoundsException.class);
     }
 
@@ -111,6 +146,11 @@ public abstract class AbstractListTest {
       testList.clear();
 
       assertThat(testList).isEmpty();
+    }
+
+    @Test
+    void containsShouldBeFalseForMissingElement() {
+      assertThat(testList.contains("Z")).isFalse();
     }
   }
 
@@ -196,6 +236,8 @@ public abstract class AbstractListTest {
 
     @Test
     void set0ShouldReplaceElement() {
+      assumeTrue(supportsSetIndexT());
+
       assertThat(testList.set(0, ANOTHER_ELEMENT)).isEqualTo(ELEMENT);
       assertThat(testList.get(0)).isEqualTo(ANOTHER_ELEMENT);
     }
@@ -212,20 +254,217 @@ public abstract class AbstractListTest {
 
     @Test
     void removeFirstShouldReturnElement() {
+      assumeTrue(supportsRemoveIndex());
+
       assertThat(testList.removeFirst()).isEqualTo(ELEMENT);
       assertThat(testList).isEmpty();
     }
 
     @Test
     void removeLastShouldReturnElement() {
+      assumeTrue(supportsRemoveIndex());
+
       assertThat(testList.removeLast()).isEqualTo(ELEMENT);
       assertThat(testList).isEmpty();
     }
 
     @Test
     void remove0ShouldReturnElement() {
+      assumeTrue(supportsRemoveIndex());
+
       assertThat(testList.remove(0)).isEqualTo(ELEMENT);
       assertThat(testList).isEmpty();
+    }
+
+    @Test
+    void containsShouldBeTrueForExistingElement() {
+      assertThat(testList.contains(ELEMENT)).isTrue();
+    }
+  }
+
+  @Nested
+  class ListContractTests {
+
+    @Test
+    void removeShouldRemoveOnlyFirstOccurrence() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "A", "C", "A"));
+
+      assertThat(list.remove("A")).isTrue();
+      assertThat(list).containsExactly("B", "A", "C", "A");
+
+      assertThat(list.remove("A")).isTrue();
+      assertThat(list).containsExactly("B", "C", "A");
+
+      assertThat(list.remove("A")).isTrue();
+      assertThat(list).containsExactly("B", "C");
+
+      assertThat(list.remove("A")).isFalse();
+      assertThat(list).containsExactly("B", "C");
+    }
+
+    @Test
+    void indexOfAndLastIndexOfShouldReportFirstAndLastOccurrence() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "A", "C", "A"));
+
+      assertThat(list.indexOf("A")).isEqualTo(0);
+      assertThat(list.lastIndexOf("A")).isEqualTo(4);
+      assertThat(list.indexOf("B")).isEqualTo(1);
+      assertThat(list.lastIndexOf("B")).isEqualTo(1);
+      assertThat(list.indexOf("Z")).isEqualTo(-1);
+      assertThat(list.lastIndexOf("Z")).isEqualTo(-1);
+    }
+
+    @Test
+    void listIteratorShouldPositionAtEveryIndex() {
+      assumeTrue(supportsListIterator());
+
+      List<String> list = createList();
+      List<String> reference = new ArrayList<>();
+
+      list.addAll(List.of("A", "B", "C", "D", "E"));
+      reference.addAll(List.of("A", "B", "C", "D", "E"));
+
+      list.remove("B");
+      reference.remove("B");
+      list.remove("D");
+      reference.remove("D");
+
+      for(int i = 0; i <= reference.size(); i++) {
+        ListIterator<String> iterator = list.listIterator(i);
+        ListIterator<String> ref = reference.listIterator(i);
+
+        assertThat(iterator.nextIndex()).isEqualTo(ref.nextIndex());
+        assertThat(iterator.previousIndex()).isEqualTo(ref.previousIndex());
+        assertThat(iterator.hasNext()).isEqualTo(ref.hasNext());
+        assertThat(iterator.hasPrevious()).isEqualTo(ref.hasPrevious());
+
+        while(ref.hasNext()) {
+          assertThat(iterator.next()).isEqualTo(ref.next());
+        }
+
+        assertThat(iterator.hasNext()).isFalse();
+
+        while(ref.hasPrevious()) {
+          assertThat(iterator.previous()).isEqualTo(ref.previous());
+        }
+
+        assertThat(iterator.hasPrevious()).isFalse();
+      }
+    }
+
+    @Test
+    void listIteratorRemoveShouldRemoveLastReturnedElement() {
+      assumeTrue(supportsListIterator());
+
+      // after next()
+      {
+        List<String> list = createList();
+        list.addAll(List.of("A", "B", "C", "D"));
+
+        ListIterator<String> iterator = list.listIterator();
+        assertThat(iterator.next()).isEqualTo("A");
+
+        iterator.remove();
+
+        assertThat(list).containsExactly("B", "C", "D");
+      }
+
+      // after previous()
+      {
+        List<String> list = createList();
+        list.addAll(List.of("A", "B", "C", "D"));
+
+        ListIterator<String> iterator = list.listIterator(list.size());
+        assertThat(iterator.previous()).isEqualTo("D");
+
+        iterator.remove();
+
+        assertThat(list).containsExactly("A", "B", "C");
+      }
+
+      // remove without next()/previous()
+      {
+        List<String> list = createList();
+        list.addAll(List.of("A", "B"));
+
+        assertThatThrownBy(() -> list.listIterator().remove()).isInstanceOf(IllegalStateException.class);
+      }
+
+      // two removes in a row
+      {
+        List<String> list = createList();
+        list.addAll(List.of("A", "B"));
+
+        ListIterator<String> iterator = list.listIterator();
+        iterator.next();
+        iterator.remove();
+
+        assertThatThrownBy(iterator::remove).isInstanceOf(IllegalStateException.class);
+      }
+
+      // removing while iterating keeps the remaining order intact
+      {
+        List<String> list = createList();
+        List<String> reference = new ArrayList<>();
+
+        for(int i = 0; i < 100; i++) {
+          list.add("" + i);
+          reference.add("" + i);
+        }
+
+        ListIterator<String> iterator = list.listIterator();
+        ListIterator<String> ref = reference.listIterator();
+
+        while(ref.hasNext()) {
+          assertThat(iterator.next()).isEqualTo(ref.next());
+
+          if(ref.nextIndex() % 3 == 0) {
+            iterator.remove();
+            ref.remove();
+          }
+        }
+
+        assertThat(list).containsExactlyElementsOf(reference);
+      }
+
+      // removing backwards keeps the cursor consistent
+      {
+        List<String> list = createList();
+        list.addAll(List.of("A", "B", "C", "D", "E"));
+
+        ListIterator<String> iterator = list.listIterator(list.size());
+        assertThat(iterator.previous()).isEqualTo("E");
+
+        iterator.remove();
+
+        assertThat(iterator.previous()).isEqualTo("D");
+        assertThat(list).containsExactly("A", "B", "C", "D");
+      }
+    }
+
+    @Test
+    void nullElementsShouldBeHandledAsConfigured() {
+      List<String> list = createList();
+
+      if(supportsNullElements()) {
+        list.add(null);
+
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0)).isNull();
+        assertThat(list.contains(null)).isTrue();
+        assertThat(list.indexOf(null)).isEqualTo(0);
+        assertThat(list.remove(null)).isTrue();
+        assertThat(list).isEmpty();
+      }
+      else {
+        assertThatThrownBy(() -> list.add(null)).isInstanceOf(NullPointerException.class);
+        assertThat(list.contains(null)).isFalse();
+        assertThat(list.remove(null)).isFalse();
+      }
     }
   }
 
@@ -241,7 +480,10 @@ public abstract class AbstractListTest {
 
     @Test
     void allAddRemoveOrders() {
-      int size = 10;
+      assumeTrue(supportsAddIndexT());
+      assumeTrue(supportsRemoveIndex());
+
+      int size = Math.min(exhaustiveTestRange, STRINGS.length);
 
       generateRemoveAndInsertOrders(size, new ArrayList<>(), list -> {
         List<String> built = createList();
@@ -270,8 +512,12 @@ public abstract class AbstractListTest {
 
     @Test
     void allRemoveOrders() {
-      List<String> data = List.of("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K");
-      int size = 11;
+      List<String> data = new ArrayList<>();
+      int size = Math.min(exhaustiveTestRange, STRINGS.length);
+
+      for(int i = 0; i < size; i++) {
+        data.add(STRINGS[i]);
+      }
 
       generateRemoveOrders(size, new ArrayList<>(), list -> {
         List<String> built = createList();
@@ -307,6 +553,7 @@ public abstract class AbstractListTest {
           generateRemoveAndInsertOrders(n, current, callback);
           current.removeLast();
         }
+
         if(i < expectedSize) {
           current.add(~i);
           generateRemoveAndInsertOrders(n, current, callback);
@@ -386,6 +633,48 @@ public abstract class AbstractListTest {
   }
 
   @Nested
+  class IteratorConcurrencyTests {
+    {
+      testList.addAll(List.of("A", "B", "C", "D", "E"));
+    }
+
+    @Test
+    void nextShouldThrowConcurrentModificationExceptionWhenModifiedDuringIteration() {
+      Iterator<String> iterator = testList.iterator();
+
+      assertThat(iterator.next()).isEqualTo("A");
+
+      testList.add("F");
+
+      assertThatThrownBy(() -> iterator.next()).isInstanceOf(ConcurrentModificationException.class);
+    }
+
+    @Test
+    void previousShouldThrowConcurrentModificationExceptionWhenModifiedDuringIteration() {
+      ListIterator<String> iterator = testList.listIterator(5);
+
+      assertThat(iterator.previous()).isEqualTo("E");
+
+      testList.clear();
+
+      assertThatThrownBy(() -> iterator.previous()).isInstanceOf(ConcurrentModificationException.class);
+    }
+
+    @Test
+    void setShouldThrowConcurrentModificationExceptionWhenModifiedDuringIteration() {
+      assumeTrue(supportsListIteratorSet());
+
+      ListIterator<String> iterator = testList.listIterator();
+
+      assertThat(iterator.next()).isEqualTo("A");
+
+      testList.remove("E");
+
+      assertThatThrownBy(() -> iterator.set("a")).isInstanceOf(ConcurrentModificationException.class);
+    }
+  }
+
+  @Nested
   class IteratorStressTests {
     private static int OPERATIONS = 100000;
 
@@ -394,6 +683,16 @@ public abstract class AbstractListTest {
 
     @Test
     void randomIteratorActions() {
+      assumeTrue(supportsListIterator());
+
+      if(!supportsListIteratorAdd()) {
+        // seed list if list iterator add is unsupported
+        for(int i = 0; i < OPERATIONS / 50; i++) {
+          testList.add("" + i);
+          referenceList.add("" + i);
+        }
+      }
+
       ListIterator<String> refIter = referenceList.listIterator();
       ListIterator<String> iter = testList.listIterator();
 
@@ -426,7 +725,7 @@ public abstract class AbstractListTest {
             assertThatThrownBy(() -> iter.previous()).isInstanceOf(NoSuchElementException.class);
           }
         }
-        else if(operation < 30) {
+        else if(operation < 30 && supportsListIteratorAdd()) {
           refIter.add("" + i);
           iter.add("" + i);
         }
@@ -439,7 +738,7 @@ public abstract class AbstractListTest {
             assertThatThrownBy(() -> iter.remove()).isInstanceOf(IllegalStateException.class);
           }
         }
-        else if(operation < 50) {
+        else if(operation < 50 && supportsListIteratorSet()) {
           try {
             refIter.set("" + operation);
             assertThatNoException().isThrownBy(() -> iter.set("" + operation));
@@ -468,6 +767,9 @@ public abstract class AbstractListTest {
 
     @Test
     void stressTestRandomInsertions() {
+      assumeTrue(supportsAddIndexT());
+      assumeTrue(supportsRemoveIndex());
+
       for(int i = 0; i < OPERATIONS; i++) {
         int index = random.nextInt(referenceList.size() + 1);
         double d = random.nextDouble();
@@ -494,6 +796,8 @@ public abstract class AbstractListTest {
 
     @Test
     void stressTestFavoringNearBeginningInsertions() {
+      assumeTrue(supportsAddIndexT());
+
       for(int i = 0; i < OPERATIONS; i++) {
         int index = insertRandomlyFavoringBeginning(i);
 
@@ -505,6 +809,8 @@ public abstract class AbstractListTest {
 
     @Test
     void stressTestFavoringNearEndingInsertions() {
+      assumeTrue(supportsAddIndexT());
+
       for(int i = 0; i < OPERATIONS; i++) {
         int index = insertRandomlyFavoringEnding(i);
 
@@ -516,6 +822,8 @@ public abstract class AbstractListTest {
 
     @Test
     void stressTestOnlyNearBeginningInsertions() {
+      assumeTrue(supportsAddIndexT());
+
       for(int i = 0; i < OPERATIONS; i++) {
         int index = random.nextInt(referenceList.size() / 3 + 1);
         double d = random.nextDouble();
@@ -538,6 +846,8 @@ public abstract class AbstractListTest {
 
     @Test
     void stressTestOnlyNearEndingInsertions() {
+      assumeTrue(supportsAddIndexT());
+
       for(int i = 0; i < OPERATIONS; i++) {
         int index = random.nextInt(referenceList.size() / 3 + 1) + referenceList.size() * 2 / 3;
         double d = random.nextDouble();
@@ -560,6 +870,8 @@ public abstract class AbstractListTest {
 
     @Test
     void stressTestRandomRemovals() {
+      assumeTrue(supportsRemoveIndex());
+
       for(int i = 0; i < OPERATIONS; i++) {
         String s = STRINGS[i];
 
@@ -592,6 +904,9 @@ public abstract class AbstractListTest {
 
     @Test
     void stressTestRandomRemovalsAndRandomInsertionsFavoringBeginning() {
+      assumeTrue(supportsAddIndexT());
+      assumeTrue(supportsRemoveIndex());
+
       for(int i = 0; i < OPERATIONS; i++) {
         String type = referenceList.isEmpty() || random.nextDouble() < 0.6 ? "add" : "remove";
         int index;
@@ -610,7 +925,31 @@ public abstract class AbstractListTest {
     }
 
     @Test
+    void stressTestRandomRemovalsAndInsertionsAtEnd() {
+      assumeTrue(supportsRemoveIndex());
+
+      for(int i = 0; i < OPERATIONS; i++) {
+        String type = referenceList.isEmpty() || random.nextDouble() < 0.6 ? "add" : "remove";
+        int index;
+
+        if(type.equals("add")) {
+          index = append(i);
+        }
+        else {
+          index = removeRandomly();
+        }
+
+        assertThat(testList)
+          .as("index = " + index + "; type = " + type + "; op = " + i)
+          .isEqualTo(referenceList);
+      }
+    }
+
+    @Test
     void stressTestRandomRemovalsFavoringBeginningAndRandomInsertionsFavoringBeginning() {
+      assumeTrue(supportsAddIndexT());
+      assumeTrue(supportsRemoveIndex());
+
       for(int i = 0; i < OPERATIONS; i++) {
         String type = referenceList.isEmpty() || random.nextDouble() < 0.6 ? "add" : "remove";
         int index;
@@ -626,6 +965,16 @@ public abstract class AbstractListTest {
           .as("index = " + index + "; type = " + type + "; op = " + i)
           .isEqualTo(referenceList);
       }
+    }
+
+    private int append(int i) {
+      String s = STRINGS[i];
+      int index = referenceList.size();
+
+      testList.addLast(s);
+      referenceList.addLast(s);
+
+      return index;
     }
 
     private int insertRandomlyFavoringBeginning(int i) {
