@@ -37,18 +37,20 @@ import org.int4.common.function.TriConsumer;
  * Base class for fluent builders that collect deferred configuration
  * options to be applied after object creation.
  * <p>
- * Subclasses register configuration steps via {@link #apply(Consumer)}
+ * Subclasses register configuration steps via {@link OptionBuilder#apply(Consumer)}
  * (or convenience methods built on top of it). These options are applied
  * in the order they were added when {@link #initialize(Object)} is invoked.
  * <p>
- * This class intentionally does not define object instantiation; concrete
- * subclasses are responsible for creating the target instance and then
- * calling {@code initialize(...)} to apply all collected options.
+ * This class implements {@link OptionBuilder}, and provides the option storage
+ * and fluent return type. It intentionally does not define object
+ * instantiation; concrete subclasses are responsible for creating the target
+ * instance and then calling {@code initialize(...)} to apply all collected
+ * options.
  *
  * @param <O> the type of object being configured
  * @param <B> the concrete builder type (self type)
  */
-public abstract class AbstractOptionBuilder<O, B extends AbstractOptionBuilder<O, B>> {
+public abstract class AbstractOptionBuilder<O, B extends AbstractOptionBuilder<O, B>> implements OptionBuilder<O, B> {
   private final List<Consumer<? super O>> options = new ArrayList<>();
 
   /**
@@ -69,16 +71,7 @@ public abstract class AbstractOptionBuilder<O, B extends AbstractOptionBuilder<O
     return (B)this;
   }
 
-  /**
-   * Registers a configuration option to be applied to the target object
-   * during initialization.
-   * <p>
-   * Options are executed in the order they are registered.
-   *
-   * @param option a configuration option to apply, cannot be {@code null}
-   * @return the fluent builder, never {@code null}
-   * @throws NullPointerException if the option is {@code null}
-   */
+  @Override
   public final B apply(Consumer<? super O> option) {
     Objects.requireNonNull(option, "option");
 
@@ -87,18 +80,7 @@ public abstract class AbstractOptionBuilder<O, B extends AbstractOptionBuilder<O
     return self();
   }
 
-  /**
-   * Registers a configuration option with a parameter to be applied to the
-   * target object during initialization.
-   * <p>
-   * Options are executed in the order they are registered.
-   *
-   * @param <U> the type of the parameter to supply to the option
-   * @param option a configuration option to apply, cannot be {@code null}
-   * @param parameter a parameter to supply to the option
-   * @return the fluent builder, never {@code null}
-   * @throws NullPointerException if the option is {@code null}
-   */
+  @Override
   public final <U> B apply(BiConsumer<? super O, ? super U> option, U parameter) {
     Objects.requireNonNull(option, "option");
 
@@ -107,20 +89,7 @@ public abstract class AbstractOptionBuilder<O, B extends AbstractOptionBuilder<O
     return self();
   }
 
-  /**
-   * Registers a configuration option with two parameters to be applied to the
-   * target object during initialization.
-   * <p>
-   * Options are executed in the order they are registered.
-   *
-   * @param <U> the type of the first parameter to supply to the option
-   * @param <V> the type of the second parameter to supply to the option
-   * @param option a configuration option to apply, cannot be {@code null}
-   * @param parameter1 the first parameter to supply to the option
-   * @param parameter2 the second parameter to supply to the option
-   * @return the fluent builder, never {@code null}
-   * @throws NullPointerException if the option is {@code null}
-   */
+  @Override
   public final <U, V> B apply(TriConsumer<? super O, ? super U, ? super V> option, U parameter1, V parameter2) {
     Objects.requireNonNull(option, "option");
 
@@ -129,22 +98,7 @@ public abstract class AbstractOptionBuilder<O, B extends AbstractOptionBuilder<O
     return self();
   }
 
-  /**
-   * Registers a configuration option with three parameters to be applied to the
-   * target object during initialization.
-   * <p>
-   * Options are executed in the order they are registered.
-   *
-   * @param <U> the type of the first parameter to supply to the option
-   * @param <V> the type of the second parameter to supply to the option
-   * @param <W> the type of the third parameter to supply to the option
-   * @param option a configuration option to apply, cannot be {@code null}
-   * @param parameter1 the first parameter to supply to the option
-   * @param parameter2 the second parameter to supply to the option
-   * @param parameter3 the third parameter to supply to the option
-   * @return the fluent builder, never {@code null}
-   * @throws NullPointerException if the option is {@code null}
-   */
+  @Override
   public final <U, V, W> B apply(QuadConsumer<? super O, ? super U, ? super V, ? super W> option, U parameter1, V parameter2, W parameter3) {
     Objects.requireNonNull(option, "option");
 
