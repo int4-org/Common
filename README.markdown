@@ -201,3 +201,88 @@ fully utilized.
 - `ShiftList` has a maximum capacity of 2^30 - 65536 elements (this is due to the restriction that
   its storage array must be a power of 2 in size, and that its first and last element can't be in
   the same block.)
+
+## `org.int4.common.collection.HashList`
+
+`HashList` is a specialized `List` implementation intended for collections that are built by
+appending and where elements are frequently removed by equality while being iterated in insertion
+order. Listener lists, as commonly maintained by UI frameworks, are the primary use case: listeners
+are appended as they are registered, removed when they are unregistered, and iterated in
+registration order when events are dispatched.
+
+`HashList` is not a drop-in replacement for `ArrayList`. Removing an element leaves a gap
+(tombstone) in the backing array, so indexed access such as `get(int)` and `remove(int)` must scan
+past those gaps and can degrade to `O(n)`. Use `HashList` when appends, iteration, `contains` and
+`remove(Object)` dominate; use `ArrayList` when fast random access by index is important.
+
+### Why `HashList`?
+
+Listener-style collections are a poor fit for the standard collection types:
+
+- `ArrayList` preserves order and allows duplicates, but `remove(Object)` first walks the list and
+  then consolidates the elements that follow. For a long-lived listener list, repeated removals can
+  cause large and repeated array moves.
+
+- `HashSet` and `LinkedHashSet` provide fast membership testing and removal, but do not allow
+  duplicates and are not `List` implementations, so they cannot model duplicate listener
+  registrations while preserving registration order.
+
+- `HashList` keeps insertion order, allows duplicates (the same listener can be registered more
+  than once), and provides `O(1)` average `contains` and `remove(Object)` for larger lists. Instead
+  of shifting the remaining elements, it leaves a tombstone, and consolidates only when tombstones
+  accumulate.
+
+### Key Design Concepts
+
+- **Array-backed storage**: Elements are kept in a contiguous array in insertion order, which gives
+  good memory locality and makes appending an `O(1)` amortized operation.
+
+- **Tombstones**: Removing an element leaves a `null` gap (tombstone) in the array instead of
+  shifting the remaining elements. Indexed access must skip these gaps, which is why `get(int)` and
+  `remove(int)` are not constant-time once the list contains tombstones.
+
+- **Adaptive hash index**: Once a list grows beyond about 32 elements, `HashList` maintains hash
+  chains over the elements using bucket head/tail indices and per-slot next links. This makes
+  `contains` and `remove(Object)` `O(1)` on average, even with duplicates present. Smaller lists
+  skip the index entirely to avoid unnecessary overhead.
+
+- **Consolidation and shrinking**: When tombstones exceed a quarter of the backing array, the list
+  compacts the remaining elements in a single pass and rebuilds the hash index. When the list has
+  shrunk far below its capacity, the backing arrays are halved. Consolidation is therefore batched
+  rather than performed on every removal.
+
+- **Insertion-order iteration**: Iterators walk the backing array while skipping tombstones, so
+  iteration remains `O(n)` overall and always sees elements in insertion order.
+
+### Time complexity
+
+| Operation             | HashList                                                 | ArrayList     | LinkedList    |
+|-----------------------|----------------------------------------------------------|:-------------:|:-------------:|
+| Append                | `O(1)` amortized                                         | `O(1)`        | `O(1)`        |
+| Get by index          | `O(n)` worst case                                        | `O(1)`        | `O(n)`        |
+| Contains              | `O(1)` average for larger lists, `O(n)` for small lists  | `O(n)`        | `O(n)`        |
+| Remove by equality    | `O(1)` average for larger lists, `O(n)` for small lists  | `O(n)`        | `O(n)`        |
+| Remove by index       | `O(n)` worst case                                        | `O(n)`        | `O(n)`        |
+| Iteration             | `O(n)`                                                   | `O(n)`        | `O(n)`        |
+| Insert/set by index   | unsupported                                              | `O(n)`/`O(1)` | `O(n)`/`O(n)` |
+
+`HashList` therefore trades random access for cheap removals. For workloads that repeatedly access
+elements by index, `ArrayList` remains the better choice.
+
+### Memory usage
+
+For lists under about 32 elements, `HashList` stores only the element array and has memory usage
+comparable to `ArrayList`. Larger lists additionally allocate hash indexing arrays, increasing
+memory usage by roughly a factor of 2 to 3 compared to the element array alone. Capacity is always
+a power of two, and the list compacts or shrinks its arrays as elements are removed.
+
+### Limitations
+
+- `HashList` does not permit `null` elements.
+- Elements can only be appended; inserting at an arbitrary index and replacing elements via `set`
+  are unsupported.
+- Indexed access and index-based removal degrade to `O(n)` while the backing array contains
+  tombstones. `HashList` is not a general-purpose replacement for `ArrayList`; prefer iteration
+  over index-based loops and use `ArrayList` when fast random access is needed.
+- Ties between equal elements are resolved in insertion order: `remove(Object)` removes the first
+  matching occurrence.
