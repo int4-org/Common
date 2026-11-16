@@ -10,7 +10,12 @@ Commonly usable classes without dependencies.
 
 ## `common-collection`
 
-Contains specialized collection classes.
+Contains specialized collection classes. See the highlights below for details:
+
+- [`ShiftList`](#orgint4commoncollectionshiftlist): a `List` and `Deque` optimized for frequent
+  insertions and removals near the head, tail, or any index.
+- [`HashList`](#orgint4commoncollectionhashlist): a specialized `List` for listener-style
+  collections where elements are appended, iterated in order, and removed by equality.
 
 ## `common-function`
 
