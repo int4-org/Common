@@ -31,6 +31,11 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
+import org.int4.common.collection.capability.Forkable;
+import org.int4.common.collection.capability.Freezable;
+import org.int4.common.collection.capability.ImmutabilityAware;
+import org.int4.common.collection.capability.Snapshottable;
+
 /**
  * Utility for creating immutable representations of common collection types.
  * <p>
@@ -128,6 +133,12 @@ public abstract class Immutable {
    * If the provided list is already a known immutable implementation,
    * it is returned as-is without copying.
    * <p>
+   * Lists that support it are not copied element by element, in this order of
+   * preference: an {@link ImmutabilityAware} list that is immutable is returned
+   * as-is; a {@link Snapshottable} list returns its snapshot; a {@link Forkable}
+   * list is forked, and the fork is frozen if it is {@link Freezable}, or else
+   * wrapped in an immutable view.
+   * <p>
    * Otherwise, a defensive copy of the input is created and wrapped in an
    * immutable view to prevent external mutation.
    * <p>
@@ -148,6 +159,26 @@ public abstract class Immutable {
 
     if(isKnownImmutable(list)) {
       return list;
+    }
+
+    if(list instanceof Snapshottable<?> snapshottable && snapshottable.snapshot() instanceof List<?> snapshot) {
+      @SuppressWarnings("unchecked")
+      List<T> casted = (List<T>)snapshot;
+
+      return casted;
+    }
+
+    if(list instanceof Forkable<?> forkable && forkable.fork() instanceof List<?> fork) {
+      @SuppressWarnings("unchecked")
+      List<T> forked = (List<T>)fork;
+
+      if(forked instanceof Freezable freezable) {
+        freezable.freeze();
+
+        return forked;
+      }
+
+      return new ImmutableList<>(Collections.unmodifiableList(forked));
     }
 
     return list instanceof RandomAccess
@@ -408,26 +439,30 @@ public abstract class Immutable {
   }
 
   private static boolean isKnownImmutable(List<?> list) {
-    return list instanceof RandomAccessImmutableList<?>
-      || list instanceof ImmutableList<?>
+    return list instanceof ImmutabilityAware aware && aware.isImmutable()
       || list.getClass().getName().startsWith("java.util.ImmutableCollections$");
   }
 
   private static boolean isKnownImmutable(Map<?, ?> map) {
-    return map instanceof AbstractImmutableMap<?, ?, ?>
+    return map instanceof ImmutabilityAware aware && aware.isImmutable()
       || map.getClass().getName().startsWith("java.util.ImmutableCollections$");
   }
 
   private static boolean isKnownImmutable(Set<?> set) {
-    return set instanceof AbstractImmutableSet<?, ?>
+    return set instanceof ImmutabilityAware aware && aware.isImmutable()
       || set.getClass().getName().startsWith("java.util.ImmutableCollections$");
   }
 
-  private static final class RandomAccessImmutableList<T> extends AbstractList<T> implements RandomAccess {
+  private static final class RandomAccessImmutableList<T> extends AbstractList<T> implements RandomAccess, ImmutabilityAware {
     private final List<T> delegate;
 
     private RandomAccessImmutableList(List<T> delegate) {
       this.delegate = delegate;
+    }
+
+    @Override
+    public boolean isImmutable() {
+      return true;
     }
 
     @Override
@@ -466,11 +501,16 @@ public abstract class Immutable {
     }
   }
 
-  private static final class ImmutableList<T> extends AbstractList<T> {
+  private static final class ImmutableList<T> extends AbstractList<T> implements ImmutabilityAware {
     private final List<T> delegate;
 
     private ImmutableList(List<T> delegate) {
       this.delegate = delegate;
+    }
+
+    @Override
+    public boolean isImmutable() {
+      return true;
     }
 
     @Override
@@ -730,11 +770,16 @@ public abstract class Immutable {
     }
   }
 
-  private abstract static class AbstractImmutableMap<K, V, D extends Map<K, V>> implements Map<K, V> {
+  private abstract static class AbstractImmutableMap<K, V, D extends Map<K, V>> implements Map<K, V>, ImmutabilityAware {
     protected final D delegate;
 
     AbstractImmutableMap(D delegate) {
       this.delegate = delegate;
+    }
+
+    @Override
+    public final boolean isImmutable() {
+      return true;
     }
 
     @Override
@@ -1036,7 +1081,7 @@ public abstract class Immutable {
     }
   }
 
-  private abstract static class AbstractImmutableSet<E, D extends Set<E>> implements Set<E> {
+  private abstract static class AbstractImmutableSet<E, D extends Set<E>> implements Set<E>, ImmutabilityAware {
     protected final D delegate;
 
     private final UnaryOperator<Iterator<E>> readOnlyIteratorSupplier;
@@ -1044,6 +1089,11 @@ public abstract class Immutable {
     AbstractImmutableSet(D delegate, UnaryOperator<Iterator<E>> readOnlyIteratorSupplier) {
       this.delegate = delegate;
       this.readOnlyIteratorSupplier = readOnlyIteratorSupplier;
+    }
+
+    @Override
+    public final boolean isImmutable() {
+      return true;
     }
 
     @Override

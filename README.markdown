@@ -16,6 +16,8 @@ Contains specialized collection classes. See the highlights below for details:
   insertions and removals near the head, tail, or any index.
 - [`HashList`](#orgint4commoncollectionhashlist): a specialized `List` for listener-style
   collections where elements are appended, iterated in order, and removed by equality.
+- [`cow.BTreeList`](#orgint4commoncollectioncow): a copy-on-write `List` with fast access and
+  fast insertions and removals at any index, which can be cloned in constant time and frozen.
 
 ## `common-function`
 
@@ -291,3 +293,108 @@ a power of two, and the list compacts or shrinks its arrays as elements are remo
   over index-based loops and use `ArrayList` when fast random access is needed.
 - Ties between equal elements are resolved in insertion order: `remove(Object)` removes the first
   matching occurrence.
+
+## `org.int4.common.collection.cow`
+
+The `cow` package contains copy-on-write collections. Cloning one takes constant time, as the clone
+shares its internal structure with the original. Only when either of them is modified are the parts
+of the structure on the path to the change copied, so the two never see each other's changes, while
+everything that was not touched stays shared. The elements themselves are never copied.
+
+At present the package contains a single collection: `BTreeList`.
+
+### `BTreeList`
+
+`BTreeList` is a general-purpose `List` that stores its elements in a B+ tree. Access by index,
+insertions and removals at any index, and removals at either end are all `O(log n)`, which makes it
+a good choice for large lists that are modified in the middle, where `ArrayList` has to move
+everything behind the change and `LinkedList` has to walk to it. Because it can be cloned in
+constant time, it is also a cheap way to take snapshots of a list.
+
+```java
+BTreeList<String> list = new BTreeList<>(List.of("a", "b", "c"));
+
+BTreeList<String> snapshot = list.clone();  // constant time, shares everything with the list
+
+list.add(1, "x");                           // copies only the nodes on the path to index 1
+snapshot.remove(0);                         // the same for the snapshot; the list is not affected
+```
+
+#### Freezing
+
+A list can be frozen, which makes it permanently read-only. Every attempt to modify a frozen list,
+directly or through an iterator or sublist, throws an `UnsupportedOperationException`. A clone of a
+frozen list is modifiable, so a frozen list works as a master copy that is shared freely, from which
+everyone who needs a changed version takes a clone:
+
+```java
+BTreeList<String> master = new BTreeList<>(values);
+
+master.freeze();
+
+BTreeList<String> mine = master.clone();  // modifiable, constant time
+
+mine.add(0, "x");                         // the master is unchanged
+```
+
+A frozen list can be read and cloned by many threads at the same time without synchronization, as
+long as it was safely published after it was frozen. A list that is not frozen is not thread-safe,
+but a clone and its original can be used independently on different threads.
+
+To get an immutable list from a `BTreeList` that may or may not be frozen, without changing it, use
+`snapshot()`: it returns the list itself when it is frozen, and otherwise a frozen clone, in
+constant time.
+
+#### Why `BTreeList`?
+
+- `ArrayList` has the fastest access by index, but inserting or removing anywhere except the end is
+  `O(n)`, and copying it is `O(n)`.
+
+- `LinkedList` inserts and removes cheaply once it is at the right position, but finding that
+  position is `O(n)`, and it uses far more memory per element.
+
+- `BTreeList` keeps access by index and modifications at any position at `O(log n)`, and offers
+  cheap snapshots, which neither of the others does.
+
+#### Key Design Concepts
+
+- **B+ tree**: Elements are stored in leaves, which are arrays of a fixed size. The leaves are
+  grouped under internal nodes that know where each of their children starts, so the child that
+  holds an index can be found without visiting the others. Nodes are kept reasonably full by
+  redistributing elements between neighbors, and the tree grows and shrinks at the root.
+
+- **Cheap modifications at the ends**: Leaves are ring buffers, so adding or removing near the start
+  or end of a leaf moves only the elements on the shorter side. Adding and removing at either end of
+  the list needs very little work in every node on the way down.
+
+- **Path copying**: A modification of a list that shares its structure copies the nodes on the path
+  to the change, and then modifies those copies. Later changes in the same part of the tree need no
+  copying, until the list is cloned again.
+
+#### Time complexity
+
+| Operation               | BTreeList                                     | ArrayList        | LinkedList      |
+|-------------------------|-----------------------------------------------|:----------------:|:---------------:|
+| Get/set by index        | `O(log n)`                                    | `O(1)`           | `O(n)`          |
+| Append                  | `O(log n)`                                    | `O(1)` amortized | `O(1)`          |
+| Insert/remove at head   | `O(log n)`                                    | `O(n)`           | `O(1)`          |
+| Insert/remove at index  | `O(log n)`, grows with node and leaf size     | `O(n)`           | `O(n)`          |
+| Iteration               | `O(n)`                                        | `O(n)`           | `O(n)`          |
+| Clone                   | `O(1)`                                        | `O(n)`           | `O(n)`          |
+| Clear                   | `O(1)`                                        | `O(n)`           | `O(n)`          |
+
+The tree's shape is set by a node size and a leaf size, which are given when the list is created
+(`new BTreeList<>(nodeSize, leafSize)`; both must be powers of two). The defaults suit most lists.
+Lists that are mostly read, iterated or appended to benefit from larger leaves; lists with many
+insertions and removals in the middle, or that are cloned and then modified, benefit from smaller
+leaves. See the class documentation for details.
+
+#### Limitations
+
+- A `BTreeList` that is not frozen is not thread-safe. Use external synchronization, or give each
+  thread its own clone.
+- Cloning does not copy the elements, so changes to a mutable element are visible in the original
+  and in all of its clones.
+- Access by index is `O(log n)`, not `O(1)`: for lists that are only read, or only appended to,
+  `ArrayList` is faster.
+- A list holds at most `Integer.MAX_VALUE` elements, like any `List`.

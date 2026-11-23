@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2025 John Hendrikx
+ * Copyright (c) 2026 John Hendrikx
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,10 @@
  * THE SOFTWARE.
  */
 
-package org.int4.common.collection;
+package org.int4.common.collection.util;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
@@ -672,6 +673,32 @@ public abstract class AbstractListTest {
 
       assertThatThrownBy(() -> iterator.set("a")).isInstanceOf(ConcurrentModificationException.class);
     }
+
+    @Test
+    void secondIteratorRemoveShouldInvalidateFirstIterator() {
+      Iterator<String> first = testList.iterator();
+      Iterator<String> second = testList.iterator();
+
+      assertThat(first.next()).isEqualTo("A");
+
+      second.next();
+      second.remove();
+
+      assertThatThrownBy(first::next).isInstanceOf(ConcurrentModificationException.class);
+    }
+
+    @Test
+    void setShouldNotInvalidateExistingIterator() {
+      assumeTrue(supportsSetIndexT());
+
+      Iterator<String> iterator = testList.iterator();
+
+      assertThat(iterator.next()).isEqualTo("A");
+
+      testList.set(0, "Z");
+
+      assertThat(iterator.next()).isEqualTo("B");
+    }
   }
 
   @Nested
@@ -1093,6 +1120,202 @@ public abstract class AbstractListTest {
       }
 
       return index;
+    }
+  }
+
+  @Nested
+  class BulkOperationTests {
+    @Test
+    void addAllAtIndexShouldInsertInOrder() {
+      assumeTrue(supportsAddIndexT());
+
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+      list.addAll(1, List.of("X", "Y"));
+
+      assertThat(list).containsExactly("A", "X", "Y", "B", "C");
+    }
+
+    @Test
+    void removeAllShouldRemoveAllMatchingElements() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "A", "C", "A"));
+      list.removeAll(List.of("A"));
+
+      assertThat(list).containsExactly("B", "C");
+    }
+
+    @Test
+    void retainAllShouldKeepOnlyMatchingElements() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "A", "C", "A"));
+      list.retainAll(List.of("A", "C"));
+
+      assertThat(list).containsExactly("A", "A", "C", "A");
+    }
+
+    @Test
+    void removeIfShouldRemoveMatchingElements() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "BB", "CCC", "D"));
+      list.removeIf(s -> s.length() > 1);
+
+      assertThat(list).containsExactly("A", "D");
+    }
+
+    @Test
+    void replaceAllShouldTransformAllElements() {
+      assumeTrue(supportsListIteratorSet());
+
+      List<String> list = createList();
+
+      list.addAll(List.of("a", "b", "c"));
+      list.replaceAll(String::toUpperCase);
+
+      assertThat(list).containsExactly("A", "B", "C");
+    }
+
+    @Test
+    void sortShouldOrderElements() {
+      assumeTrue(supportsListIteratorSet());
+
+      List<String> list = createList();
+
+      list.addAll(List.of("C", "A", "B"));
+      list.sort(Comparator.naturalOrder());
+
+      assertThat(list).containsExactly("A", "B", "C");
+    }
+  }
+
+  @Nested
+  class DerivedOperationTests {
+    @Test
+    void toArrayShouldReturnAllElements() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+
+      assertThat(list.toArray()).containsExactly("A", "B", "C");
+    }
+
+    @Test
+    void toArrayShouldFillProvidedArray() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+
+      assertThat(list.toArray(new String[0])).containsExactly("A", "B", "C");
+
+      String[] larger = new String[5];
+      String[] result = list.toArray(larger);
+
+      assertThat(result).isSameAs(larger);
+      assertThat(result).containsExactly("A", "B", "C", null, null);
+    }
+
+    @Test
+    void equalsAndHashCodeShouldFollowListContract() {
+      List<String> list = createList();
+      List<String> other = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+      other.addAll(List.of("A", "B", "C"));
+
+      assertThat(list).isEqualTo(other);
+      assertThat(list.hashCode()).isEqualTo(other.hashCode());
+      assertThat(list).isEqualTo(List.of("A", "B", "C"));
+      assertThat(list).isNotEqualTo(List.of("A", "B"));
+      assertThat(list).isNotEqualTo(List.of("A", "B", "D"));
+    }
+
+    @Test
+    void forEachShouldVisitAllElementsInOrder() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+
+      List<String> visited = new ArrayList<>();
+
+      list.forEach(visited::add);
+
+      assertThat(visited).containsExactlyElementsOf(list);
+    }
+
+    @Test
+    void spliteratorShouldVisitAllElements() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+
+      List<String> visited = new ArrayList<>();
+
+      list.spliterator().forEachRemaining(visited::add);
+
+      assertThat(visited).containsExactlyElementsOf(list);
+    }
+
+    @Test
+    void iteratorForEachRemainingShouldVisitRemainingElements() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+
+      Iterator<String> iterator = list.iterator();
+
+      assertThat(iterator.next()).isEqualTo("A");
+
+      List<String> visited = new ArrayList<>();
+
+      iterator.forEachRemaining(visited::add);
+
+      assertThat(visited).containsExactly("B", "C");
+    }
+  }
+
+  @Nested
+  class ClearAndReuseTests {
+    @Test
+    void clearThenReuseShouldWork() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+      list.clear();
+
+      assertThat(list).isEmpty();
+
+      list.addAll(List.of("X", "Y"));
+
+      assertThat(list).containsExactly("X", "Y");
+    }
+
+    @Test
+    void clearingEmptyListShouldBeNoOp() {
+      List<String> list = createList();
+
+      list.clear();
+      list.clear();
+
+      assertThat(list).isEmpty();
+    }
+
+    @Test
+    void clearDuringIterationShouldThrowConcurrentModificationException() {
+      List<String> list = createList();
+
+      list.addAll(List.of("A", "B", "C"));
+
+      Iterator<String> iterator = list.iterator();
+
+      assertThat(iterator.next()).isEqualTo("A");
+
+      list.clear();
+
+      assertThatThrownBy(iterator::next).isInstanceOf(ConcurrentModificationException.class);
     }
   }
 }

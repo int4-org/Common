@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2025 John Hendrikx
+ * Copyright (c) 2026 John Hendrikx
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import org.int4.common.collection.cow.BTreeList;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -99,6 +100,34 @@ class ImmutableTest {
         List<String> doubleImmutable = Immutable.of(immutable);
 
         assertThat(doubleImmutable).isSameAs(immutable);
+      }
+
+      @Test
+      void shouldReturnSameInstanceIfBTreeListIsFrozen() {
+        BTreeList<String> frozen = new BTreeList<>(Arrays.asList("a", "b", "c"));
+
+        frozen.freeze();
+
+        assertThat(Immutable.of(frozen)).isSameAs(frozen);
+      }
+
+      @Test
+      void shouldReturnFrozenSnapshotForBTreeListThatIsNotFrozen() {
+        BTreeList<String> mutable = new BTreeList<>(Arrays.asList("a", null, "c"));
+        List<String> immutable = Immutable.of(mutable);
+
+        assertThat(immutable).isNotSameAs(mutable).isInstanceOf(BTreeList.class);
+        assertThat(((BTreeList<String>)immutable).isImmutable()).isTrue();
+        assertThat(immutable).containsExactly("a", null, "c");
+
+        mutable.add("d");
+        mutable.remove(0);
+
+        assertThat(immutable).containsExactly("a", null, "c");
+        assertThat(mutable).containsExactly(null, "c", "d");
+        assertThatThrownBy(() -> immutable.add("e")).isExactlyInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> immutable.remove(0)).isExactlyInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> immutable.clear()).isExactlyInstanceOf(UnsupportedOperationException.class);
       }
 
       @Test

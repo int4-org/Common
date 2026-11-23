@@ -26,6 +26,7 @@ package org.int4.common.collection;
 
 import java.util.List;
 
+import org.int4.common.collection.util.AbstractListTest;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

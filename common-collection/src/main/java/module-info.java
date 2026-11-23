@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2025 John Hendrikx
+ * Copyright (c) 2025, 2026 John Hendrikx
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,4 +27,6 @@
  */
 module org.int4.common.collection {
   exports org.int4.common.collection;
+  exports org.int4.common.collection.capability;
+  exports org.int4.common.collection.cow;
 }
